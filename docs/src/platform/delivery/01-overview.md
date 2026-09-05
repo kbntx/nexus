@@ -63,6 +63,17 @@ Image-shipping apps use a
 a small repo CI commits image-tag bumps to. A GitHub webhook triggers sub-minute sync on every
 `nexus-manifests` push. Full pipeline in [GitOps deploys](03-gitops-deploys.md).
 
+## Dependency updates
+
+<a href="https://docs.renovatebot.com/" target="_blank" rel="noopener">Renovate</a> runs self-hosted
+as a `CronJob` rather than the hosted GitHub app, so it can burst onto the same
+[Karpenter](../cluster/01-overview.md)-provisioned, Cilium-isolated node shape the rest of bursty
+compute in this cluster uses instead of running continuously. Its container installs
+<a href="https://mise.jdx.dev/" target="_blank" rel="noopener">mise</a> at startup, fetches this
+repo's own `mise.toml`, and runs `mise install` before invoking Renovate — so `postUpgradeTasks`
+like the pnpm lockfile fixup run with the exact toolchain versions this repo is pinned to, not
+whatever ships in the Renovate image.
+
 ## Access
 
 Humans authenticate through GitHub SSO via the bundled
@@ -79,6 +90,8 @@ account (`get`/`sync`/`update`/restart on the `default` project, nothing more).
   — root chart declaring every child `Application`
 - <a href="https://github.com/kbntx-org/nexus/blob/main/platform/services/app-of-apps/values.yaml" target="_blank" rel="noopener"><code>platform/services/app-of-apps/values.yaml</code></a>
   — the full catalog of cluster workloads
+- <a href="https://github.com/kbntx-org/nexus/tree/main/platform/core/renovate" target="_blank" rel="noopener"><code>platform/core/renovate/</code></a>
+  — self-hosted Renovate chart: `CronJob`, Karpenter node pool, Cilium egress policy
 - [CI/CD pipeline](02-ci-cd-pipeline.md) — how source changes turn into images
 - [GitOps deploys](03-gitops-deploys.md) — the multi-source `Application` shape and the
   `nexus-manifests` flow

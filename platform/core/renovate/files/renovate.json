@@ -1,6 +1,9 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "$schema": "https://docs.renovatebot.com/renovate-global-schema.json",
   "extends": ["config:recommended"],
+  "onboarding": false,
+  "requireConfig": "optional",
+  "binarySource": "global",
   "prConcurrentLimit": 5,
   "prHourlyLimit": 0,
   "minimumReleaseAge": "14 days",
@@ -12,6 +15,12 @@
   "timezone": "Europe/Berlin",
   "customEnvVariables": {
     "PNPM_CONFIG_FROZEN_LOCKFILE": "false"
+  },
+  "allowedCommands": ["^pnpm install --fix-lockfile --lockfile-only$"],
+  "postUpgradeTasks": {
+    "commands": ["pnpm install --fix-lockfile --lockfile-only"],
+    "fileFilters": ["**/pnpm-lock.yaml"],
+    "executionMode": "branch"
   },
   "packageRules": [
     {
@@ -48,6 +57,7 @@
     {
       "matchFileNames": [
         "platform/core/karpenter/values.yaml",
+        "platform/core/renovate/values.yaml",
         "platform/core/kubernetes/upgrades/plans/values.yaml",
         "platform/core/github-arc-runners/runners-generator/values.yaml"
       ],
@@ -57,6 +67,7 @@
     {
       "matchFileNames": [
         "platform/core/karpenter/values.yaml",
+        "platform/core/renovate/values.yaml",
         "platform/core/kubernetes/upgrades/plans/values.yaml",
         "platform/core/github-arc-runners/runners-generator/values.yaml"
       ],
@@ -69,6 +80,7 @@
       "customType": "regex",
       "fileMatch": [
         "^platform/core/karpenter/values\\.yaml$",
+        "^platform/core/renovate/values\\.yaml$",
         "^platform/core/kubernetes/upgrades/plans/values\\.yaml$",
         "^platform/core/github-arc-runners/runners-generator/values\\.yaml$"
       ],

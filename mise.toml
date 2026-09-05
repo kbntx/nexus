@@ -22,8 +22,7 @@ yq = "4.52.5"
 
 
 [tasks."lock:update"]
-run = "mise install"
-env = { MISE_LOCKED = "0" }
+run = "mise lock && mise install"
 
 [tasks."cluster"]
 description = "Manage the local kind cluster, registry, and buildx builder (create|delete|recreate)"
