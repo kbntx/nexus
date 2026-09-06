@@ -179,6 +179,26 @@ argocd-apps:
         syncOptions:
           - CreateNamespace=true
 
+    renovate:
+      project: default
+      source:
+        repoURL: https://github.com/kbntx-org/nexus.git
+        path: platform/core/renovate
+        targetRevision: main
+        helm:
+          parameters:
+            - name: gitRevision
+              value: $ARGOCD_APP_REVISION
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: renovate
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+
     sysbox:
       project: default
       source:

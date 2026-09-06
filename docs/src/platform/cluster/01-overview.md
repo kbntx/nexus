@@ -53,6 +53,25 @@ The worker nodes are provisioned in two separate flavors:
   <a href="https://github.com/rancher/system-upgrade-controller" target="_blank" rel="noopener">Rancher's
   system-upgrade-controller</a> is used.
 
+### Gotcha: changing the agent token doesn't touch the datastore
+
+`k3s_token` and `k3s_agent_token` (consumed by the
+<a href="https://github.com/kbntx-org/nexus/blob/main/platform/modules/k3s/ansible/roles/k3s/templates/k3s-config.yml.j2" target="_blank" rel="noopener"><code>k3s
+role's config template</code></a>) only get written into the cluster's encrypted bootstrap data —
+the copy k3s actually checks against on the datastore — the first time a server initializes
+(`cluster-init`). Re-running the role with a changed `k3s_agent_token` updates
+`/etc/rancher/k3s/config.yaml` on disk, but on an already-running cluster the datastore keeps
+whatever value was set at init time (the server token itself, if no distinct agent token was passed
+yet). Restarting the control plane afterwards then fails because the on-disk config no longer
+matches what's in the datastore, while the stale agent token silently keeps working for new nodes
+joining the cluster, since that's still the value the datastore has.
+
+To actually change it, use
+<a href="https://docs.k3s.io/cli/token" target="_blank" rel="noopener"><code>k3s token
+rotate</code></a> (`-t <old> --new-token <new>`) and restart the servers/agents with the new value —
+this forces k3s to rewrite the bootstrap data. Rotating to the same value the config already has is
+a safe way to force that resync without actually changing the token.
+
 ## Core components
 
 What actually makes a freshly provisioned set of VMs into a working, useful cluster — in the order

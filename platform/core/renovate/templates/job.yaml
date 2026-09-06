@@ -1,0 +1,145 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: renovate
+spec:
+  schedule: 0 */4 * * *
+  timeZone: Europe/Berlin
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 2400
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app: renovate
+        spec:
+          restartPolicy: Never
+          nodeSelector:
+            pool: renovate
+          tolerations:
+            - key: renovate
+              operator: Equal
+              value: 'true'
+              effect: NoSchedule
+          initContainers:
+            - name: generate-tokens
+              image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  apt-get update -qq
+                  apt-get install -y -qq --no-install-recommends ca-certificates curl jq openssl
+
+                  NOW=$(date +%s)
+                  IAT=$((NOW - 60))
+                  EXP=$((NOW + 540))
+
+                  HDR=$(printf '{"alg":"RS256","typ":"JWT"}' | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
+                  PLD=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$IAT" "$EXP" "$GITHUB_RENOVATE_APP_ID" | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
+                  SIG=$(printf '%s.%s' "$HDR" "$PLD" | openssl dgst -sha256 -sign /etc/secrets/renovate-key.pem | base64 | tr -d '=' | tr '/+' '_-' | tr -d '\n')
+                  JWT="$HDR.$PLD.$SIG"
+
+                  INSTALL_ID=$(curl -sf \
+                    -H "Authorization: Bearer $JWT" \
+                    -H "Accept: application/vnd.github.v3+json" \
+                    "https://api.github.com/app/installations" \
+                    | jq '.[0].id')
+
+                  TOKEN=$(curl -sf -X POST \
+                    -H "Authorization: Bearer $JWT" \
+                    -H "Accept: application/vnd.github.v3+json" \
+                    "https://api.github.com/app/installations/${INSTALL_ID}/access_tokens" \
+                    | jq -r '.token')
+
+                  printf '%s' "$TOKEN" > /tmp/tokens/renovate-token
+                  echo "Token generated for app $GITHUB_RENOVATE_APP_ID"
+              env:
+                - name: GITHUB_RENOVATE_APP_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: renovate-secrets
+                      key: renovateAppId
+              volumeMounts:
+                - name: tokens
+                  mountPath: /tmp/tokens
+                - name: renovate-app-secrets
+                  mountPath: /etc/secrets
+                  readOnly: true
+          containers:
+            - name: renovate
+              image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  apt-get update -qq
+                  apt-get install -y -qq --no-install-recommends ca-certificates curl jq git
+
+                  export RENOVATE_TOKEN=$(cat /tmp/tokens/renovate-token)
+                  export GH_TOKEN="$RENOVATE_TOKEN"
+
+                  mkdir -p /mise
+                  for file in mise.toml mise.lock; do
+                    curl -fsSL \
+                      -H "Authorization: Bearer $GH_TOKEN" \
+                      -H "Accept: application/vnd.github.v3+json" \
+                      "https://api.github.com/repos/kbntx-org/nexus/contents/$file?ref={{ .Values.gitRevision }}" \
+                      | jq -r '.content' | base64 -d > "/mise/$file"
+                  done
+
+                  export MISE_VERSION="v$(grep '^min_version' /mise/mise.toml | sed -E 's/.*"(.*)".*/\1/')"
+                  curl -fsSL https://mise.run | sh
+
+                  mise install
+                  npm install -g renovate@44.52.1
+
+                  exec renovate
+              env:
+                - name: MISE_DATA_DIR
+                  value: /mise
+                - name: MISE_GLOBAL_CONFIG_FILE
+                  value: /mise/mise.toml
+                - name: MISE_INSTALL_PATH
+                  value: /usr/local/bin/mise
+                - name: PATH
+                  value: /mise/shims:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+                - name: RENOVATE_CONFIG_FILE
+                  value: /etc/renovate/config.json
+                - name: LOG_LEVEL
+                  value: debug
+                - name: LOG_FORMAT
+                  value: json
+                - name: RENOVATE_IGNORE_PR_AUTHOR
+                  value: "true"
+                - name: RENOVATE_REQUIRE_CONFIG
+                  value: "optional"
+                - name: RENOVATE_PLATFORM
+                  value: github
+                - name: RENOVATE_AUTODISCOVER
+                  value: 'false'
+                - name: RENOVATE_REPOSITORIES
+                  value: kbntx-org/nexus
+              volumeMounts:
+                - name: tokens
+                  mountPath: /tmp/tokens
+                  readOnly: true
+                - name: renovate-config
+                  mountPath: /etc/renovate
+                  readOnly: true
+          volumes:
+            - name: tokens
+              emptyDir: {}
+            - name: renovate-config
+              configMap:
+                name: renovate-extra-config
+            - name: renovate-app-secrets
+              secret:
+                secretName: renovate-secrets
+                items:
+                  - key: renovateAppPrivateKey
+                    path: renovate-key.pem
