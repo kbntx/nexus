@@ -128,7 +128,7 @@ importers:
         version: 13.0.6
       js-yaml:
         specifier: ^5.0.0
-        version: 5.3.0
+        version: 5.4.0
       jsonc-eslint-parser:
         specifier: ^3.0.0
         version: 3.3.0
@@ -4800,8 +4800,8 @@ packages:
   js-yaml@4.3.1:
     resolution: {integrity: sha512-CY6crGq313MX8GkwvB7tzgp99vjQxY1++5y10/BKN/GUfHqWaOGQMNZkBvqSzsZKWk/ijwHlWzzkLulsGHhjWQ==}
 
-  js-yaml@5.3.0:
-    resolution: {integrity: sha512-muutsYr+e2+d3rTgUGslq5rxbBlUy3cJ61IsHag2QNDQV+7zXWjkUpmALIajhrlLlrgRUiymj6U3zUr/TMK84Q==}
+  js-yaml@5.4.0:
+    resolution: {integrity: sha512-jE7vUJIebKzYQI5xu4co5CRBDlDEYnHrdzsxs4O2giCz4v2SbVMYKpmt1D9L38OKQAeCWmrOTRiCV93u0UkaJA==}
 
   jsesc@3.1.0:
     resolution: {integrity: sha512-/sM3dO2FOzXjKQhJuo0Q173wf2KOo8t4I8vHy6lF9poUp7bKT0/NHE8fPX23PwfhnykfqnC2xRxOnVw5XuGIaA==}
@@ -14419,7 +14419,7 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  js-yaml@5.3.0:
+  js-yaml@5.4.0:
     dependencies:
       argparse: 2.0.1
 
